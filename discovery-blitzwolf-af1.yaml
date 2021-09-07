@@ -1,10 +1,7 @@
 blueprint:
-  name: 'Tasmota Discovery: Blitzwolf BW-AF1'
+  name: 'Tdsadasdasdasdas1'
   description: |
-    Set up a Blitzwolf BW-AF1 air fryer in Home Assistant. Blog post with [instructions](https://blakadder.com/bw-af1-in-home-assistant).
-    
-    Requires rules configured in Tasmota. See device template page for rules: [Blitzwolf BW-AF1 Air Fryer](https://templates.blakadder.com/blitzwolf_BW-AF1.html)
-
+   dsadsa
   domain: automation
   input:
     topic:
@@ -34,34 +31,33 @@ trigger_variables:
   topic: !input topic
 
 trigger:
-  - platform: homeassistant
-    event: start
-  - platform: mqtt
-    topic: '{{ "tele/" ~ topic ~ "/LWT" }}'
-    payload: "Online"
+	- platform: mqtt
+	topic: 'tele/tasmota_zbbridge/SENSOR'
+
+condition:
+	- condition: template
+	value_template: >
+		{{ 'Occupancy' in ((trigger.payload_json.ZbReceived.values() | list)[0].keys() | list) }}
 
 action:
-  - service: mqtt.publish
-    data:
-      topic: "homeassistant/select/{{ macaddr }}/cookbook/config"
-      retain: true
-      payload: "{{ payload_cookbook }}"
-  - service: mqtt.publish
-    data:
-      topic: "homeassistant/number/{{ macaddr }}/cooktime/config"
-      retain: true
-      payload: "{{ payload_cooktime }}"
-  - service: mqtt.publish
-    data:
-      topic: "homeassistant/number/{{ macaddr }}/cooktemp/config"
-      retain: true
-      payload: "{{ payload_cooktemp }}"
-  - delay:
-      hours: 0
-      minutes: 0
-      seconds: 5
-      milliseconds: 0
-  - service: mqtt.publish
-    data:
-      topic: "cmnd/{{ topic }}/tuyasend8"
-      payload: ""
+	- service: mqtt.publish
+	data_template:
+	topic: homeassistant/binary_sensor/{{ (trigger.payload_json.ZbReceived.keys() | list)[0] }}Occupancy/config
+	retain: true
+	payload: >
+		{% set code = (trigger.payload_json.ZbReceived.keys() | list)[0] %}
+		{
+			"name": "{{ trigger.payload_json.ZbReceived[code].Name }} Motion",
+			"device_class": "motion",
+			"state_topic": "tele/zigbee/{{ (trigger.payload_json.ZbReceived.keys() | list)[0] }}/Occupancy",
+			"payload_off": "0",
+			"payload_on": "1"
+		}
+	- service: mqtt.publish
+	data_template:
+		topic: > 
+			tele/zigbee/{{ (trigger.payload_json.ZbReceived.keys() | list)[0] }}/Occupancy
+		payload: >
+			{% set code = (trigger.payload_json.ZbReceived.keys() | list)[0] %}
+			{{ trigger.payload_json.ZbReceived[code].Occupancy }}
+		retain: true
