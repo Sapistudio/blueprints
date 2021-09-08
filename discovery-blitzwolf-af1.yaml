@@ -24,7 +24,7 @@ trigger_variables:
   topic: !input topic
 trigger:
   - platform: mqtt
-    topic: '{{~ topic ~}}'
+    topic: tele/tasmota_04D2FC/SENSOR
 variables:
   topic: !input topic
   mac_address: !input mac_address
