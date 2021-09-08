@@ -1,12 +1,12 @@
 blueprint:
   name: 'Tasmota Zigbee autodiscovery devices1'
   description: |
-    dsadsa
+    
   domain: automation
   input:
     topic:
       name: Tasmota MQTT Topic 
-      description: "Found in Information tab of the webUI. Warning, it is case sensitive!(full topic including tele)"
+      description: "Found in Information tab of the webUI. Warning, it is case sensitive!"
       selector: 
         text:
     device_name:
