@@ -1,20 +1,17 @@
 blueprint:
-  name: 'Tasmota Discovery: Blitzwolf BW-AF1'
+  name: 'Tasmota Zigbee autodiscovery devices1'
   description: |
-    Set up a Blitzwolf BW-AF1 air fryer in Home Assistant. Blog post with [instructions](https://blakadder.com/bw-af1-in-home-assistant).
     
-    Requires rules configured in Tasmota. See device template page for rules: [Blitzwolf BW-AF1 Air Fryer](https://templates.blakadder.com/blitzwolf_BW-AF1.html)
-
   domain: automation
   input:
     topic:
       name: Tasmota MQTT Topic 
-      description: "Found in Information tab of the webUI. Warning, it is case sensitive!"
+      description: "Found in Information tab of the webUI. Warning, it is case sensitive!(full topic including tele)"
       selector: 
         text:
-    mac_address:
-      name: Tasmota MAC Address
-      description: "Found in Tasmota webUI Information tab."
+    device_name:
+      name: Device name
+      description: "Device name"
 
 mode: single
 max_exceeded: silent
@@ -27,7 +24,7 @@ trigger:
     topic: {{topic}}
 variables:
   topic: !input topic
-  mac_address: !input mac_address
+  device_name: !input device_name
   code: "{{(trigger.payload_json.ZbReceived.keys() | list)[0]}}"
   statetopic: tele/zigbee/{{code}}
   availabilitytopic: tele/tasmota_04D2FC/LWT
@@ -44,7 +41,7 @@ variables:
           "unit_of_measurement": "°C","unique_id": "'+(code)+'.temp.sensor","availability_topic": "'+(availabilitytopic)+'",
           "payload_available": "'+(payloadavv)+'",
           "payload_not_available": "'+(payloadunavv)+'",
-          "dev": {"ids": ["'+(gendeviceid)+'"],"name": "safasdasdas"}
+          "dev": {"ids": ["'+(gendeviceid)+'"],"name": "'+(device_name)+'"}
         }},' %}
     {% endif %}
     {% if 'Humidity' in triggerkeys %}
@@ -52,7 +49,7 @@ variables:
           "device_class": "humidity","name": "Humidity","state_topic":"'+(statetopic)+'/Humidity",
           "unit_of_measurement": "%","unique_id": "'+(code)+'.humid.sensor","availability_topic": "'+(availabilitytopic)+'",
           "payload_available": "'+(payloadavv)+'","payload_not_available": "'+(payloadunavv)+'",
-          "dev": {"ids": ["'+(gendeviceid)+'"],"name": "safasdasdas"}
+          "dev": {"ids": ["'+(gendeviceid)+'"],"name": "'+(device_name)+'"}
         }},' %}
     {% endif %}
     {% if 'BatteryPercentage' in triggerkeys %}
@@ -60,7 +57,7 @@ variables:
           "device_class": "battery","name": "BatteryPercentage","state_topic":"'+(statetopic)+'/BatteryPercentage",
           "unit_of_measurement": "%","unique_id": "'+(code)+'.batteryp.sensor","availability_topic": "'+(availabilitytopic)+'",
           "payload_available": "'+(payloadavv)+'","payload_not_available": "'+(payloadunavv)+'",
-          "dev": {"ids": ["'+(gendeviceid)+'"],"name": "safasdasdas"}
+          "dev": {"ids": ["'+(gendeviceid)+'"],"name": "'+(device_name)+'"}
         }},' %}
     {% endif %}
     {% if options.endswith(',') %}
