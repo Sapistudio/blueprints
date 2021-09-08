@@ -1,7 +1,10 @@
 blueprint:
-  name: 'Tdsadasdasdasdas1'
+  name: 'Tasmota Discovery: Blitzwolf BW-AF1'
   description: |
-   dsadsa
+    Set up a Blitzwolf BW-AF1 air fryer in Home Assistant. Blog post with [instructions](https://blakadder.com/bw-af1-in-home-assistant).
+    
+    Requires rules configured in Tasmota. See device template page for rules: [Blitzwolf BW-AF1 Air Fryer](https://templates.blakadder.com/blitzwolf_BW-AF1.html)
+
   domain: automation
   input:
     topic:
@@ -16,48 +19,100 @@ blueprint:
 mode: single
 max_exceeded: silent
 
-variables:
-  topic: !input topic
-  mac_address: !input mac_address
-  macaddr: '{{- mac_address.split(":") | join -}}'
-  payload_cookbook: >-
-     {{ '{"name":"Set Cookbook","state_topic":"' ~ topic ~ '/cookbook","options":["Default","Custom","Fries","Frozen Fries","Nuggets","Chicken","Steak","Fish"],"value_template":"{%set m=value|int%}{%if m==0%}Default{%elif m==1%}Custom{%elif m==2%}Fries{%elif m==3%}Frozen Fries{%elif m==4%}Nuggets{%elif m==5%}Chicken{%elif m==6%}Steak{%elif m==7%}Fish{%else%}Unknown{%endif%}","command_topic":"cmnd/' ~ topic ~ '/event","icon":"mdi:chef-hat","availability_topic":"tele/' ~ topic ~'/LWT","pl_avail":"Online","pl_not_avail":"Offline","unique_id":"' ~ macaddr ~ '_cookbook","device":{"cns":[["mac","' ~ macaddr ~ '"]]}}' }}
-  payload_cooktime: >-
-     {{ '{"name":"Set Cooking Time","state_topic":"' ~ topic ~ '/cooktime","command_topic":"cmnd/' ~ topic ~ '/var5","icon":"mdi:av-timer","availability_topic":"tele/' ~ topic ~ '/LWT","pl_avail":"Online","pl_not_avail":"Offline","min":1,"max":60,"unique_id":"' ~ macaddr ~ '_cooktime","device":{"cns":[["mac","' ~ macaddr ~ '"]]}}' }}
-  payload_cooktemp: >-
-     {{ '{"name":"Set Cooking Temp","state_topic":"' ~ topic ~ '/cooktemp","command_topic":"cmnd/' ~ topic ~ '/var3","icon":"mdi:thermometer","availability_topic":"tele/' ~ topic ~ '/LWT","pl_avail":"Online","pl_not_avail":"Offline","min":40,"max":400,"unique_id":"' ~ macaddr ~ '_cooktemp","device":{"cns":[["mac","' ~ macaddr ~ '"]]}}' }}
 
 trigger_variables:
   topic: !input topic
-
 trigger:
-	- platform: mqtt
-	topic: 'tele/tasmota_zbbridge/SENSOR'
-
-condition:
-	- condition: template
-	value_template: >
-		{{ 'Occupancy' in ((trigger.payload_json.ZbReceived.values() | list)[0].keys() | list) }}
-
+  - platform: mqtt
+    topic: '{{~ topic ~}}'
+variables:
+  topic: !input topic
+  mac_address: !input mac_address
+  code: "{{(trigger.payload_json.ZbReceived.keys() | list)[0]}}"
+  statetopic: tele/zigbee/{{code}}
+  availabilitytopic: tele/tasmota_04D2FC/LWT
+  payloadavv: Online
+  payloadunavv: Offline
+  gendeviceid: 04D2FC{{code}}
+  triggervalues: "{{trigger.payload_json.ZbReceived[code]}}"
+  triggerkeys: "{{((trigger.payload_json.ZbReceived.values() | list)[0].keys() | list)}}"
+  sensoroptions: >
+    {% set options = "{" %}
+    {% if 'Temperature' in triggerkeys %}
+      {% set options = (options)+'"temperature":{"payload": {
+          "device_class": "temperature","name": "Temperature","state_topic":"'+(statetopic)+'/Temperature",
+          "unit_of_measurement": "°C","unique_id": "'+(code)+'.temp.sensor","availability_topic": "'+(availabilitytopic)+'",
+          "payload_available": "'+(payloadavv)+'",
+          "payload_not_available": "'+(payloadunavv)+'",
+          "dev": {"ids": ["'+(gendeviceid)+'"],"name": "safasdasdas"}
+        }},' %}
+    {% endif %}
+    {% if 'Humidity' in triggerkeys %}
+      {% set options = (options)+'"humidity":{"payload": {
+          "device_class": "humidity","name": "Humidity","state_topic":"'+(statetopic)+'/Humidity",
+          "unit_of_measurement": "%","unique_id": "'+(code)+'.humid.sensor","availability_topic": "'+(availabilitytopic)+'",
+          "payload_available": "'+(payloadavv)+'","payload_not_available": "'+(payloadunavv)+'",
+          "dev": {"ids": ["'+(gendeviceid)+'"],"name": "safasdasdas"}
+        }},' %}
+    {% endif %}
+    {% if 'BatteryPercentage' in triggerkeys %}
+      {% set options = (options)+'"battpercent":{"payload": {
+          "device_class": "battery","name": "BatteryPercentage","state_topic":"'+(statetopic)+'/BatteryPercentage",
+          "unit_of_measurement": "%","unique_id": "'+(code)+'.batteryp.sensor","availability_topic": "'+(availabilitytopic)+'",
+          "payload_available": "'+(payloadavv)+'","payload_not_available": "'+(payloadunavv)+'",
+          "dev": {"ids": ["'+(gendeviceid)+'"],"name": "safasdasdas"}
+        }},' %}
+    {% endif %}
+    {% if options.endswith(',') %}
+      {% set options = options[:-1] %}
+    {% endif %}
+    {% set options = (options)+"}" %}
+    {% set converted = (options) |from_json  %}
+    {{options}}
 action:
-	- service: mqtt.publish
-	data_template:
-	topic: homeassistant/binary_sensor/{{ (trigger.payload_json.ZbReceived.keys() | list)[0] }}Occupancy/config
-	retain: true
-	payload: >
-		{% set code = (trigger.payload_json.ZbReceived.keys() | list)[0] %}
-		{
-			"name": "{{ trigger.payload_json.ZbReceived[code].Name }} Motion",
-			"device_class": "motion",
-			"state_topic": "tele/zigbee/{{ (trigger.payload_json.ZbReceived.keys() | list)[0] }}/Occupancy",
-			"payload_off": "0",
-			"payload_on": "1"
-		}
-	- service: mqtt.publish
-	data_template:
-		topic: > 
-			tele/zigbee/{{ (trigger.payload_json.ZbReceived.keys() | list)[0] }}/Occupancy
-		payload: >
-			{% set code = (trigger.payload_json.ZbReceived.keys() | list)[0] %}
-			{{ trigger.payload_json.ZbReceived[code].Occupancy }}
-		retain: true
+  choose:
+    - conditions:
+        - condition: template
+          value_template: "{{ 'Humidity' in triggerkeys }}\n"
+      sequence:
+        - service: mqtt.publish
+          data_template:
+            retain: false
+            topic: homeassistant/sensor/{{code}}{{sensoroptions.humidity.payload.name}}/config
+            payload: |
+              {{sensoroptions.humidity.payload|to_json }}
+        - service: mqtt.publish
+          data_template:
+            topic: "{{statetopic}}/{{sensoroptions.humidity.payload.name}}"
+            payload: "{{triggervalues[sensoroptions.humidity.payload.name]}}\n"
+            retain: false
+    - conditions:
+        - condition: template
+          value_template: "{{ 'Temperature' in triggerkeys }}\n"
+      sequence:
+        - service: mqtt.publish
+          data_template:
+            retain: false
+            topic: homeassistant/sensor/{{code}}{{sensoroptions.temperature.payload.name}}/config
+            payload: |
+              {{sensoroptions.temperature.payload|to_json }}
+        - service: mqtt.publish
+          data_template:
+            topic: "{{statetopic}}/{{sensoroptions.temperature.payload.name}}"
+            payload: "{{triggervalues[sensoroptions.temperature.payload.name]}}\n"
+            retain: false
+    - conditions:
+        - condition: template
+          value_template: "{{ 'BatteryPercentage' in triggerkeys }}\n"
+      sequence:
+        - service: mqtt.publish
+          data_template:
+            retain: false
+            topic: homeassistant/sensor/{{code}}{{sensoroptions.battpercent.payload.name}}/config
+            payload: |
+              {{sensoroptions.battpercent.payload|to_json }}
+        - service: mqtt.publish
+          data_template:
+            topic: "{{statetopic}}/{{sensoroptions.battpercent.payload.name}}"
+            payload: "{{triggervalues[sensoroptions.battpercent.payload.name]}}\n"
+            retain: false
