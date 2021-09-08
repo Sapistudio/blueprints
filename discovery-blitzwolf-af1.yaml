@@ -1,5 +1,5 @@
 blueprint:
-  name: 'Tasmota Zigbee autodiscovery devices'
+  name: 'Tasmota Discovery: Blitzwolf BW-AF1'
   description: |
     Set up a Blitzwolf BW-AF1 air fryer in Home Assistant. Blog post with [instructions](https://blakadder.com/bw-af1-in-home-assistant).
     
