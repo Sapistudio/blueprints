@@ -1,39 +1,46 @@
 blueprint:
-  name: 'Tasmota Discovery: Blitzwolf BW-AF1'
+  name: "Tasmota Sonoff autodiscovery devices"
   description: |
-    Set up a Blitzwolf BW-AF1 air fryer in Home Assistant. Blog post with [instructions](https://blakadder.com/bw-af1-in-home-assistant).
-    
-    Requires rules configured in Tasmota. See device template page for rules: [Blitzwolf BW-AF1 Air Fryer](https://templates.blakadder.com/blitzwolf_BW-AF1.html)
 
   domain: automation
   input:
     topic:
-      name: Tasmota MQTT Topic 
+      name: Tasmota MQTT Topic
       description: "Found in Information tab of the webUI. Warning, it is case sensitive!"
-      selector: 
+      selector:
         text:
-    mac_address:
-      name: Tasmota MAC Address
-      description: "Found in Tasmota webUI Information tab."
+    device_name:
+      name: Device name
+      description: "Device name"
+    device_model:
+      name: Device model
+      description: "Device model"
+      default: "zigbee"
+    device_manufactuer:
+      name: Device manufactuer
+      description: "Device name"
+      default: "zigbee"
 
 mode: single
 max_exceeded: silent
 
-
 trigger_variables:
   topic: !input topic
+
 trigger:
   - platform: mqtt
-    topic: {{topic}}
+    topic: tele/{{topic}}/SENSOR
 variables:
-  topic: !input topic
-  mac_address: !input mac_address
+  device_topic: !input device_name
+  device_manufactuer: !input device_manufactuer
+  device_model: !input device_model
   code: "{{(trigger.payload_json.ZbReceived.keys() | list)[0]}}"
   statetopic: tele/zigbee/{{code}}
   availabilitytopic: tele/tasmota_04D2FC/LWT
   payloadavv: Online
   payloadunavv: Offline
   gendeviceid: 04D2FC{{code}}
+  device_name: "{{device_topic}}_{{code}}"
   triggervalues: "{{trigger.payload_json.ZbReceived[code]}}"
   triggerkeys: "{{((trigger.payload_json.ZbReceived.values() | list)[0].keys() | list)}}"
   sensoroptions: >
@@ -44,7 +51,7 @@ variables:
           "unit_of_measurement": "°C","unique_id": "'+(code)+'.temp.sensor","availability_topic": "'+(availabilitytopic)+'",
           "payload_available": "'+(payloadavv)+'",
           "payload_not_available": "'+(payloadunavv)+'",
-          "dev": {"ids": ["'+(gendeviceid)+'"],"name": "safasdasdas"}
+          "dev": {"ids": ["'+(gendeviceid)+'"],"name": "'+(device_name)+'","model": "'+(device_model)+'","manufacturer": "'+(device_manufactuer)+'"}
         }},' %}
     {% endif %}
     {% if 'Humidity' in triggerkeys %}
@@ -52,7 +59,28 @@ variables:
           "device_class": "humidity","name": "Humidity","state_topic":"'+(statetopic)+'/Humidity",
           "unit_of_measurement": "%","unique_id": "'+(code)+'.humid.sensor","availability_topic": "'+(availabilitytopic)+'",
           "payload_available": "'+(payloadavv)+'","payload_not_available": "'+(payloadunavv)+'",
-          "dev": {"ids": ["'+(gendeviceid)+'"],"name": "safasdasdas"}
+          "dev": {"ids": ["'+(gendeviceid)+'"],"name": "'+(device_name)+'","model": "'+(device_model)+'","manufacturer": "'+(device_manufactuer)+'"}
+        }},' %}
+    {% endif %}
+    {% if 'Contact' in triggerkeys %}
+      {% set options = (options)+'"contactsensor":{"payload": {
+          "device_class": "opening","name": "Contact","state_topic":"'+(statetopic)+'/Contact",
+          "unique_id": "'+(code)+'.contact.sensor",
+          "availability_topic": "'+(availabilitytopic)+'",
+          "payload_available": "'+(payloadavv)+'",
+          "payload_not_available": "'+(payloadunavv)+'",
+          "dev": {"ids": ["'+(gendeviceid)+'"],"name": "'+(device_name)+'","model": "'+(device_model)+'","manufacturer": "'+(device_manufactuer)+'"}
+        }},' %}
+    {% endif %}
+    {% if 'Occupancy' in triggerkeys %}
+      {% set options = (options)+'"occupancysensor":{"payload": {
+          "device_class": "occupancy","name": "Occupancy","state_topic":"'+(statetopic)+'/Occupancy",
+          "unique_id": "'+(code)+'.occupancy.sensor",
+          "availability_topic": "'+(availabilitytopic)+'",
+          "payload_available": "'+(payloadavv)+'",
+          "payload_not_available": "'+(payloadunavv)+'",
+          "off_delay": 30,
+          "dev": {"ids": ["'+(gendeviceid)+'"],"name": "'+(device_name)+'","model": "'+(device_model)+'","manufacturer": "'+(device_manufactuer)+'"}
         }},' %}
     {% endif %}
     {% if 'BatteryPercentage' in triggerkeys %}
@@ -60,7 +88,7 @@ variables:
           "device_class": "battery","name": "BatteryPercentage","state_topic":"'+(statetopic)+'/BatteryPercentage",
           "unit_of_measurement": "%","unique_id": "'+(code)+'.batteryp.sensor","availability_topic": "'+(availabilitytopic)+'",
           "payload_available": "'+(payloadavv)+'","payload_not_available": "'+(payloadunavv)+'",
-          "dev": {"ids": ["'+(gendeviceid)+'"],"name": "safasdasdas"}
+          "dev": {"ids": ["'+(gendeviceid)+'"],"name": "'+(device_name)+'","model": "'+(device_model)+'","manufacturer": "'+(device_manufactuer)+'"}
         }},' %}
     {% endif %}
     {% if options.endswith(',') %}
@@ -81,6 +109,7 @@ action:
             topic: homeassistant/sensor/{{code}}{{sensoroptions.humidity.payload.name}}/config
             payload: |
               {{sensoroptions.humidity.payload|to_json }}
+        - delay: 00:00:02
         - service: mqtt.publish
           data_template:
             topic: "{{statetopic}}/{{sensoroptions.humidity.payload.name}}"
@@ -96,10 +125,53 @@ action:
             topic: homeassistant/sensor/{{code}}{{sensoroptions.temperature.payload.name}}/config
             payload: |
               {{sensoroptions.temperature.payload|to_json }}
+        - delay: 00:00:02
         - service: mqtt.publish
           data_template:
             topic: "{{statetopic}}/{{sensoroptions.temperature.payload.name}}"
             payload: "{{triggervalues[sensoroptions.temperature.payload.name]}}\n"
+            retain: false
+    - conditions:
+        - condition: template
+          value_template: "{{ 'Contact' in triggerkeys }}\n"
+      sequence:
+        - service: mqtt.publish
+          data_template:
+            retain: false
+            topic: homeassistant/binary_sensor/{{code}}{{sensoroptions.contactsensor.payload.name}}/config
+            payload: |
+              {{sensoroptions.contactsensor.payload|to_json }}
+        - delay: 00:00:02
+        - service: mqtt.publish
+          data_template:
+            topic: "{{statetopic}}/{{sensoroptions.contactsensor.payload.name}}"
+            payload: >-
+              {% if triggervalues[sensoroptions.contactsensor.payload.name]|int == 1  %}
+                ON
+              {% else %} 
+                OFF
+              {% endif %}
+            retain: false
+    - conditions:
+        - condition: template
+          value_template: "{{ 'Occupancy' in triggerkeys }}\n"
+      sequence:
+        - service: mqtt.publish
+          data_template:
+            retain: false
+            topic: homeassistant/binary_sensor/{{code}}{{sensoroptions.occupancysensor.payload.name}}/config
+            payload: |
+              {{sensoroptions.occupancysensor.payload|to_json }}
+        - delay: 00:00:02
+        - service: mqtt.publish
+          data_template:
+            topic: "{{statetopic}}/{{sensoroptions.occupancysensor.payload.name}}"
+            payload: >-
+              {% if triggervalues[sensoroptions.occupancysensor.payload.name]|int == 1  %}
+                ON
+              {% else %} 
+                OFF
+              {% endif %}
             retain: false
     - conditions:
         - condition: template
@@ -111,6 +183,7 @@ action:
             topic: homeassistant/sensor/{{code}}{{sensoroptions.battpercent.payload.name}}/config
             payload: |
               {{sensoroptions.battpercent.payload|to_json }}
+        - delay: 00:00:02
         - service: mqtt.publish
           data_template:
             topic: "{{statetopic}}/{{sensoroptions.battpercent.payload.name}}"
