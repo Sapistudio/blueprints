@@ -29,17 +29,17 @@ trigger_variables:
 
 trigger:
   - platform: mqtt
-    topic: tele/{{topic}}/SENSOR
+    topic: tele/tasmota_{{topic}}/SENSOR
 variables:
   device_topic: !input device_name
   device_manufactuer: !input device_manufactuer
   device_model: !input device_model
   code: "{{(trigger.payload_json.ZbReceived.keys() | list)[0]}}"
   statetopic: tele/zigbee/{{code}}
-  availabilitytopic: tele/tasmota_04D2FC/LWT
+  availabilitytopic: tele/tasmota_{{topic}}/LWT
   payloadavv: Online
   payloadunavv: Offline
-  gendeviceid: 04D2FC{{code}}
+  gendeviceid: {{topic}}{{code}}
   device_name: "{{device_topic}}_{{code}}"
   triggervalues: "{{trigger.payload_json.ZbReceived[code]}}"
   triggerkeys: "{{((trigger.payload_json.ZbReceived.values() | list)[0].keys() | list)}}"
@@ -105,7 +105,7 @@ action:
       sequence:
         - service: mqtt.publish
           data_template:
-            retain: false
+            retain: true
             topic: homeassistant/sensor/{{code}}{{sensoroptions.humidity.payload.name}}/config
             payload: |
               {{sensoroptions.humidity.payload|to_json }}
@@ -114,14 +114,14 @@ action:
           data_template:
             topic: "{{statetopic}}/{{sensoroptions.humidity.payload.name}}"
             payload: "{{triggervalues[sensoroptions.humidity.payload.name]}}\n"
-            retain: false
+            retain: true
     - conditions:
         - condition: template
           value_template: "{{ 'Temperature' in triggerkeys }}\n"
       sequence:
         - service: mqtt.publish
           data_template:
-            retain: false
+            retain: true
             topic: homeassistant/sensor/{{code}}{{sensoroptions.temperature.payload.name}}/config
             payload: |
               {{sensoroptions.temperature.payload|to_json }}
@@ -130,14 +130,14 @@ action:
           data_template:
             topic: "{{statetopic}}/{{sensoroptions.temperature.payload.name}}"
             payload: "{{triggervalues[sensoroptions.temperature.payload.name]}}\n"
-            retain: false
+            retain: true
     - conditions:
         - condition: template
           value_template: "{{ 'Contact' in triggerkeys }}\n"
       sequence:
         - service: mqtt.publish
           data_template:
-            retain: false
+            retain: true
             topic: homeassistant/binary_sensor/{{code}}{{sensoroptions.contactsensor.payload.name}}/config
             payload: |
               {{sensoroptions.contactsensor.payload|to_json }}
@@ -151,14 +151,14 @@ action:
               {% else %} 
                 OFF
               {% endif %}
-            retain: false
+            retain: true
     - conditions:
         - condition: template
           value_template: "{{ 'Occupancy' in triggerkeys }}\n"
       sequence:
         - service: mqtt.publish
           data_template:
-            retain: false
+            retain: true
             topic: homeassistant/binary_sensor/{{code}}{{sensoroptions.occupancysensor.payload.name}}/config
             payload: |
               {{sensoroptions.occupancysensor.payload|to_json }}
@@ -172,14 +172,14 @@ action:
               {% else %} 
                 OFF
               {% endif %}
-            retain: false
+            retain: true
     - conditions:
         - condition: template
           value_template: "{{ 'BatteryPercentage' in triggerkeys }}\n"
       sequence:
         - service: mqtt.publish
           data_template:
-            retain: false
+            retain: true
             topic: homeassistant/sensor/{{code}}{{sensoroptions.battpercent.payload.name}}/config
             payload: |
               {{sensoroptions.battpercent.payload|to_json }}
@@ -188,4 +188,4 @@ action:
           data_template:
             topic: "{{statetopic}}/{{sensoroptions.battpercent.payload.name}}"
             payload: "{{triggervalues[sensoroptions.battpercent.payload.name]}}\n"
-            retain: false
+            retain: true
