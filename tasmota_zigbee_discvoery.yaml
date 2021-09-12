@@ -39,7 +39,7 @@ variables:
   availabilitytopic: tele/tasmota_{{topic}}/LWT
   payloadavv: Online
   payloadunavv: Offline
-  gendeviceid: {{topic}}{{code}}
+  gendeviceid: {{code}}
   device_name: "{{device_topic}}_{{code}}"
   triggervalues: "{{trigger.payload_json.ZbReceived[code]}}"
   triggerkeys: "{{((trigger.payload_json.ZbReceived.values() | list)[0].keys() | list)}}"
